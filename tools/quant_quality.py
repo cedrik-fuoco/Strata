@@ -181,6 +181,9 @@ def cmd_prompt(a) -> int:
     st = json.load(open(a.ids))
     out = pathlib.Path(a.out).resolve()
     out.mkdir(parents=True, exist_ok=True)
+    global PROMPT_LENS
+    if a.lens:
+        PROMPT_LENS = tuple(int(x) for x in a.lens.split(","))
     for f in out.glob("first.*"):
         f.unlink()
     env = dict(os.environ)
@@ -198,7 +201,7 @@ def cmd_prompt(a) -> int:
     k = args.index("--short-read")
     del args[k:k + 2]                      # the default (64): these prompts take the batched prompt path
     k = args.index("--prefill")
-    args[k + 1] = "auto"
+    args[k + 1] = a.prefill   # default "auto"; a pinned chunk is what an A/B of a path that needs n >= 2*chunk (e.g. STRATA_PREFILL_LAYER_MAJOR) has to pass
     if a.wrap:
         args = a.wrap.split() + args
     errf = open(out / "stderr.txt", "w")
@@ -356,6 +359,8 @@ def main() -> int:
     p.add_argument("--min-free-gb", type=float, default=16)
     p.add_argument("--wrap", help="a command prefix for the engine, e.g. 'systemd-run --user --scope -p MemoryMax=200G'")
     p = sub.add_parser("prompt", help="the batched prompt path's next-token logits after 20 prompts (a directory)")
+    p.add_argument("--prefill", default="auto", help="the prompt chunk (default auto): pin it to reach a path whose gate needs a prompt longer than 2 chunks")
+    p.add_argument("--lens", default=None, help="comma-separated prompt lengths instead of 256,512,768,1000 (needs an ids set with segments that long)")
     p.add_argument("--config", required=True)
     p.add_argument("--out", required=True)
     p.add_argument("--ids", default=str(SET_DIR / "set.ids.json"))
